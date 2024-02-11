@@ -1,3 +1,5 @@
 tensorflow
 pandas
 python-slugify
+keras
+sklearn

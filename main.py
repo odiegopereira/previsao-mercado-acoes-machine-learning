@@ -33,21 +33,21 @@ def plotPrevistoXRealizado(model, x, scaled_df, df, title):
 
 def main():
   ticks = [
-    # {
-    #   'name': 'VALE3',
-    #   'file': 'VALE3.SA.csv'
-    # },
-    # {
-    #   'name': 'MGLU3',
-    #   'file': 'MGLU3.SA.csv'
-    # },
-    # {
-    #   'name': 'CSAN3.SA.csv',
-    #   'file': 'CSAN3.SA.csv'
-    # }
+    {
+      'name': 'VALE3',
+      'file': 'data/VALE3.SA.csv'
+    },
+    {
+      'name': 'MGLU3',
+      'file': 'data/MGLU3.SA.csv'
+    },
+    {
+      'name': 'CSAN3.SA.csv',
+      'file': 'data/CSAN3.SA.csv'
+    },
     {
       'name': 'APPLE',
-      'file': 'AAPL.csv'
+      'file': 'data/AAPL.csv'
     }
   ]
   for tick in ticks:
