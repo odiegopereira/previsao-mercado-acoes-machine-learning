@@ -3,39 +3,28 @@ import numpy as np
 from slugify import slugify
 
 def bars(title, categories, values):
+  plt.clf()
   plt.bar(categories, values)
  
   plt.xlabel('Descrição')
   plt.ylabel('Valores')
   plt.title(title)
+
+  for i, value in enumerate(values):
+    plt.text(categories[i], value, str(round(value, 5)), ha='center', va='bottom')
   
   plt.savefig(slugify(title))
 
-def confusionMatrixCompare(title, rnaMatrix, svmMatrix):
-  fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
+def line(title, df):
+  plt.clf()
+  plt.figure(figsize=(10, 6))
+  plt.title(title)
+  
+  for i in df.columns[1:]:
+    plt.plot(df.index, df[i], label=i)
 
-  # RNA
-  axes[0].imshow(rnaMatrix, interpolation='nearest', cmap=plt.cm.Blues)
-  axes[0].set_title('RNA Matriz de Confusão')
-  plt.colorbar(ax=axes[0], mappable=axes[0].images[0], orientation='vertical')
-  axes[0].set_xticks(np.arange(2))
-  axes[0].set_yticks(np.arange(2))
-  axes[0].set_xticklabels(['Negativo', 'Positivo'])
-  axes[0].set_yticklabels(['Negativo', 'Positivo'])
-  axes[0].set_xlabel('Rótulos Previstos')
-  axes[0].set_ylabel('Rótulos Verdadeiros')
-
-  # SVM
-  axes[1].imshow(svmMatrix, interpolation='nearest', cmap=plt.cm.Blues)
-  axes[1].set_title('SVM Matriz de Confusão')
-  plt.colorbar(ax=axes[1], mappable=axes[1].images[0], orientation='vertical')
-  axes[1].set_xticks(np.arange(2))
-  axes[1].set_yticks(np.arange(2))
-  axes[1].set_xticklabels(['Negativo', 'Positivo'])
-  axes[1].set_yticklabels(['Negativo', 'Positivo'])
-  axes[1].set_xlabel('Rótulos Previstos')
-  axes[1].set_ylabel('Rótulos Verdadeiros')
-
-  plt.suptitle(title)
-  plt.tight_layout()
+  plt.xlabel('Índice')
+  plt.ylabel('Valores')
+  plt.legend()
+  plt.grid(True)
   plt.savefig(slugify(title))

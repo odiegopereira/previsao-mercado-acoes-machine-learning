@@ -1,39 +1,38 @@
 import tensorflow as tf
 from keras.models import Sequential
 from keras.layers import Dense
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, accuracy_score
-import numpy as np
-import matplotlib.pyplot as plt
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score 
 
 
 class Model:
-  def __init__(self, title, optimizer, loss, epochs, batch_size, x, y):
-    self.title = title
+  def __init__(self, optimizer, loss, epochs, batch_size, xTrain, yTrain, xTest, yTest):
     self.optimizer = optimizer
     self.loss = loss
     self.epochs = epochs
     self.batch_size = batch_size
-    self.x = x
-    self.y = y
+    self.xTrain = xTrain
+    self.yTrain = yTrain
+    self.xTest = xTest
+    self.yTest = yTest
   
   def process(self):
-    X_train, X_test, y_train, y_test = train_test_split(self.x, self.y, test_size=0.3)
   
-
+    # Create the model
     model = Sequential()
-    model.add(Dense(units=12, input_dim=X_train.shape[1], activation='relu'))
+    model.add(Dense(units=12, input_dim=self.xTrain.shape[1], activation='relu'))
     model.add(Dense(units=12, activation='relu'))
     model.add(Dense(units=3, activation='relu'))
     model.add(Dense(units=1, activation='relu'))
 
-    model.compile(optimizer=self.optimizer, loss=self.loss, metrics=['accuracy'])
-    model.fit(X_train, y_train, epochs=self.epochs, batch_size=self.batch_size)
+    model.compile(optimizer=self.optimizer, loss=self.loss)
+    model.fit(self.xTrain, self.yTrain, epochs=self.epochs, batch_size=self.batch_size)
+    
     self.model = model
 
-    y_pred = model.predict(X_test)
-    #accuracy = model.score(y_test, y_pred)
-
+    predict = model.predict(self.xTest)
+    
     return {
-      'accuracy': 0,
+      'mean_absolute_error': mean_absolute_error(self.yTest, predict),
+      'mean_squared_error': mean_squared_error(self.yTest, predict),
+      'r2_score': r2_score(self.yTest, predict)
     }

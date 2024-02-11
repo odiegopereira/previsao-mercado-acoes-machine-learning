@@ -1,92 +1,25 @@
 import rna
 import ridge
+import svm
 from keras import losses
 import chart
 import pandas as pd
-import talib as ta
-from talib import MA_Type
 from sklearn.preprocessing import MinMaxScaler
-import matplotlib.pyplot as plt
 
-def getVariationClass(value):
-  if value <= 0: return 0
-  else: return 1
-
-def prepareDataframe(df):
+def preProcessingData(df):
   df = df[df['Volume'] != 0]
   df = df.dropna()
   df = df.reset_index()
   df['Target'] = df[['Close']].shift(-1)
   df = df.iloc[:-1]
 
-  return df
-
-def appendIndicators(df):
-  # Média móvel exponencial do Close, Open, High e Low
-  df['EMAC'] = ta.EMA(df['Close'], timeperiod=3)
-  df['EMAO'] = ta.EMA(df['Open'], timeperiod=3)
-  df['EMAH'] = ta.EMA(df['High'], timeperiod=3)
-  df['EMAL'] = ta.EMA(df['Low'], timeperiod=3)
-  
-  df['RSI'] = ta.RSI(df['EMAC'], timeperiod=14) # Relative Strength Index
-  df['WILLR'] = ta.WILLR(df['EMAH'], df['EMAL'], df['EMAC'], timeperiod=14) # Williams %R
-  df['MACD'], df['MACDSIGNAL'], df['MACDHIST'] = ta.MACD(df['EMAC'], fastperiod=14, slowperiod=24, signalperiod=14) #Moving Average Convergence Divergence
-  df['OBV'] = ta.OBV(df['EMAC'], df['Volume']) # On Balance Volume
-  df['ROC'] = ta.ROC(df['EMAC'], timeperiod=14) #Price Rate of Change
-  df['FASTK'], df['FASTD'] = ta.STOCHRSI(df['EMAC'], timeperiod=14, fastk_period=5, fastd_period=3, fastd_matype=0) #Stochastic Oscillator
-  
-  df.fillna(method="ffill", inplace= True)
-  df.fillna(method="bfill",inplace= True)
-  df = df.reset_index()
-  
-  return df
-
-def interactive_plot(df, title):
-  plt.figure(figsize=(10, 6))
-  plt.title(title)
-  
-  for i in df.columns[1:]:
-      plt.plot(df['Date'], df[i], label=i)
-
-  plt.xlabel('Date')
-  plt.ylabel('Values')
-  plt.legend()
-  plt.grid(True)
-  plt.savefig('hello_world')
-
-
-def main():
-  df = pd.read_csv('MGLU3.SA.csv')
-  df = prepareDataframe(df)
-  #df = appendIndicators(df)
-
   sc = MinMaxScaler(feature_range=(0,1))
   scaled_df = pd.DataFrame(sc.fit_transform(df.drop(columns=['Date', 'Adj Close'])), columns=df.drop(columns=['Date', 'Adj Close']).columns)
 
-  x = scaled_df[['Open', 'High', 'Low', 'Close', 'Volume']]
-  y = scaled_df[['Target']]
- 
+  return df, scaled_df
 
-  # rnaModel = rna.Model(
-  #   title='Sem indicadores',
-  #   optimizer='Adam',
-  #   loss=losses.categorical_hinge,
-  #   epochs=500,
-  #   batch_size=64,
-  #   x=x,
-  #   y=y
-  # )
-  # rnaStatistics = rnaModel.process()
-  # print(rnaStatistics)
-
-  ridgeModel = ridge.Model(
-    title='Sem indicadores',
-    x=x,
-    y=y
-  )
-  ridgeStatistics = ridgeModel.process()
-
-  predict_price = ridgeModel.model.predict(x)
+def plotPrevistoXRealizado(model, x, scaled_df, df, title):
+  predict_price = model.predict(x)
   Predict = []
   for i in predict_price:
     Predict.append(i[0])
@@ -94,22 +27,106 @@ def main():
   close = scaled_df['Close']
   
   df_predict = df[['Date']]
-  df_predict['Close'] = close
-  df_predict['Prediction'] = Predict
-  interactive_plot(df_predict, 'Teste')
+  df_predict['Real'] = close
+  df_predict['Previsto'] = Predict
+  chart.line(title, df_predict)
 
-  # chart.bars(
-  #   title='Acurácia: Comparação com Indicadores',
-  #   categories=['RNA', 'RNA Chute', 'SVM', 'SVM Chute'],
-  #   values=[
-  #     rnaWithoutIndicatorsStatistics['accuracy']*100,
-  #     rnaWithoutIndicatorsStatistics['accuracy_most_frequently']*100,
-  #     svmWithoutIndicatorsStatistics['accuracy']*100,
-  #     svmWithoutIndicatorsStatistics['accuracy_most_frequently']*100
-  #   ]
-  # )
+def main():
+  ticks = [
+    # {
+    #   'name': 'VALE3',
+    #   'file': 'VALE3.SA.csv'
+    # },
+    # {
+    #   'name': 'MGLU3',
+    #   'file': 'MGLU3.SA.csv'
+    # },
+    # {
+    #   'name': 'CSAN3.SA.csv',
+    #   'file': 'CSAN3.SA.csv'
+    # }
+    {
+      'name': 'APPLE',
+      'file': 'AAPL.csv'
+    }
+  ]
+  for tick in ticks:
+    df = pd.read_csv(tick['file'])
+
+    dfTrain = df[df['Date'] < '2023-01-01']
+    dfTrain, scaled_dfTrain = preProcessingData(dfTrain)
+
+    xTrain = scaled_dfTrain[['Open', 'High', 'Low', 'Close', 'Volume']]
+    yTrain = scaled_dfTrain[['Target']]
+
+    dfTest = df[df['Date'] >= '2023-01-01']
+    dfTest, scaled_dfTest = preProcessingData(dfTest)
+
+    xTest = scaled_dfTest[['Open', 'High', 'Low', 'Close', 'Volume']]
+    yTest = scaled_dfTest[['Target']]
   
 
+    rnaModel = rna.Model(
+      optimizer='Adam',
+      loss=losses.mse,
+      epochs=1000,
+      batch_size=64,
+      xTrain=xTrain,
+      yTrain=yTrain,
+      xTest=xTest,
+      yTest=yTest
+    )
+    rnaStatistics = rnaModel.process()
+    plotPrevistoXRealizado(rnaModel.model, xTest, scaled_dfTest, dfTest, 'Previsto x Realizado: RNA ' + tick['name'])
 
+    ridgeModel = ridge.Model(
+      alpha=1.0,
+      xTrain=xTrain,
+      yTrain=yTrain,
+      xTest=xTest,
+      yTest=yTest
+    )
+    ridgeStatistics = ridgeModel.process()
+    plotPrevistoXRealizado(ridgeModel.model, xTest, scaled_dfTest, dfTest, 'Previsto x Realizado: RIDGE ' + tick['name'])
+
+    svmModel = svm.Model(
+      penalty=1.0,
+      xTrain=xTrain,
+      yTrain=yTrain,
+      xTest=xTest,
+      yTest=yTest
+    )
+    svmStatistics = svmModel.process()
+    plotPrevistoXRealizado(ridgeModel.model, xTest, scaled_dfTest, dfTest, 'Previsto x Realizado: SVM ' + tick['name'])
+
+    chart.bars(
+      title='Erro médio absoluto comparação: ' + tick['name'],
+      categories=['RNA', 'RR', 'SVM'],
+      values=[
+        rnaStatistics['mean_absolute_error'],
+        ridgeStatistics['mean_absolute_error'],
+        svmStatistics['mean_absolute_error'],
+      ]
+    )
+
+    chart.bars(
+      title='Erro Quadrático Médio comparação: ' + tick['name'],
+      categories=['RNA', 'RR', 'SVM'],
+      values=[
+        rnaStatistics['mean_squared_error'],
+        ridgeStatistics['mean_squared_error'],
+        svmStatistics['mean_squared_error'],
+      ]
+    )
+
+    chart.bars(
+      title='Coeficiente de determinação: ' + tick['name'],
+      categories=['RNA', 'RR', 'SVM'],
+      values=[
+        rnaStatistics['r2_score'],
+        ridgeStatistics['r2_score'],
+        svmStatistics['r2_score'],
+      ]
+    )
 
 main()
